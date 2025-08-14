@@ -4,10 +4,12 @@ Simply Install N8N on your own server/
 **Fast start from Github / Быстрый запуск с GitHub**
 
 # install
+```bash
 curl -fsSL https://raw.githubusercontent.com/evdokimenkoiv/N8M-Jarvis/main/install_n8n.sh -o install_n8n.sh
 chmod +x install_n8n.sh && ./install_n8n.sh
 
 # uninstall (при необходимости)
+```bash
 curl -fsSL https://raw.githubusercontent.com/evdokimenkoiv/N8M-Jarvis/main/uninstall.sh -o uninstall.sh
 chmod +x uninstall.sh && ./uninstall.sh
 
@@ -27,17 +29,14 @@ chmod +x install_n8n.sh && ./install_n8n.sh
 
 After installation, open https://<domain>/ and create the first n8n admin user.
 
-Update
-bash
-Копировать
-Редактировать
+**Update**
+```bash
 cd /opt/n8n           # or your chosen directory
 sudo docker compose pull
 sudo docker compose up -d
-Uninstall
-bash
-Копировать
-Редактировать
+
+**Uninstall**
+```bash
 curl -fsSL https://raw.githubusercontent.com/evdokimenkoiv/N8M-Jarvis/main/uninstall.sh -o uninstall.sh
 chmod +x uninstall.sh && ./uninstall.sh
 The uninstaller stops the stack and can optionally remove Docker volumes (persistent data), the install directory, and even Docker Engine.
