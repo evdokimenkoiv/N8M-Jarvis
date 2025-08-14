@@ -10,10 +10,10 @@ err()    { printf "[✗] %s\n" "$*"; }
 
 trap 'err "${T_ERR:-Installation failed. See logs above.}"; exit 1' ERR
 
-# --- language selection ---
-read -rp "Select language / Выберите язык [en/ru] (ru): " LANG_CHOICE
+# --- language selection (default EN) ---
+read -rp "Select language / Выберите язык [en/ru] (en): " LANG_CHOICE
 LANG_CHOICE="${LANG_CHOICE,,}"
-if [[ "$LANG_CHOICE" != "en" && "$LANG_CHOICE" != "ru" ]]; then LANG_CHOICE="ru"; fi
+if [[ "$LANG_CHOICE" != "en" && "$LANG_CHOICE" != "ru" ]]; then LANG_CHOICE="en"; fi
 
 if [[ "$LANG_CHOICE" == "ru" ]]; then
   T_TITLE="=== Установщик n8n (Docker + PostgreSQL + Caddy/Let’s Encrypt) ==="
@@ -132,6 +132,7 @@ cat > .env <<EOF
 DOMAIN=${DOMAIN}
 EMAIL=${EMAIL}
 GENERIC_TIMEZONE=${TZ}
+PG_TAG=${PG_TAG}
 
 # ---- n8n ----
 N8N_HOST=${DOMAIN}
