@@ -156,7 +156,3 @@ You can choose to remove volumes (persistent data), the install directory, and e
 - **Docker Engine** packages that were installed via APT.
 
 ---
-
-## License
-
-Add your preferred license (e.g., MIT) to the repository root.
