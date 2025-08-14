@@ -1,4 +1,4 @@
-# N8M-Jarvis — Production-ready n8n on Ubuntu (Docker + PostgreSQL + Caddy + Let’s Encrypt)
+# N8N-Jarvis — Production-ready n8n on Ubuntu (Docker + PostgreSQL + Caddy + Let’s Encrypt)
 
 This repository provides an **interactive installer** for **n8n** with **PostgreSQL** and **Caddy** reverse-proxy, automatic HTTPS via **Let’s Encrypt**, optional **staging** CA, and a set of helper scripts (**switch_ca.sh**, **oauth_info.sh**, **uninstall.sh**).  
 The installer supports **EN/RU**, **OAuth** redirect URIs, **Telegram-friendly** HTTPS on **443**, and performs critical **permissions fixes** to prevent common crashes.
