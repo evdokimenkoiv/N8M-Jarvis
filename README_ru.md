@@ -1,9 +1,9 @@
-# N8M-Jarvis — n8n под Ubuntu (Docker + PostgreSQL + Caddy + Let’s Encrypt), готовый к продакшену
+# N8N-Jarvis — n8n под Ubuntu (Docker + PostgreSQL + Caddy + Let’s Encrypt), готовый к продакшену
 
 Этот репозиторий даёт **интерактивный установщик** для **n8n** с **PostgreSQL** и **Caddy** (reverse-proxy), автоматический HTTPS через **Let’s Encrypt**, опциональный **staging** CA и вспомогательные скрипты (**switch_ca.sh**, **oauth_info.sh**, **uninstall.sh**).  
 Поддерживаются **EN/RU**, **OAuth** redirect URI, **Telegram** на **443**, и выполняются критичные **исправления прав** для предотвращения частых падений.
 
-> Репозиторий: `https://github.com/evdokimenkoiv/N8M-Jarvis`
+> Репозиторий: `https://github.com/evdokimenkoiv/N8N-Jarvis`
 
 ---
 
@@ -11,7 +11,7 @@
 
 ```bash
 # Скачать и запустить установщик
-curl -fsSL https://raw.githubusercontent.com/evdokimenkoiv/N8M-Jarvis/main/install_n8n.sh -o install_n8n.sh
+curl -fsSL https://raw.githubusercontent.com/evdokimenkoiv/N8N-Jarvis/main/install_n8n.sh -o install_n8n.sh
 chmod +x install_n8n.sh && ./install_n8n.sh
 ```
 
@@ -64,7 +64,7 @@ Redirect URI для настройки у провайдера (Google, GitHub, 
 
 Повторный вывод в любой момент:
 ```bash
-curl -fsSL https://raw.githubusercontent.com/evdokimenkoiv/N8M-Jarvis/main/oauth_info.sh -o oauth_info.sh
+curl -fsSL https://raw.githubusercontent.com/evdokimenkoiv/N8N-Jarvis/main/oauth_info.sh -o oauth_info.sh
 chmod +x oauth_info.sh && ./oauth_info.sh
 ```
 `oauth_info.sh` пытается автоматически определить домен из запущенного Docker-контейнера (читает `N8N_HOST`), затем из `.env` в указанном каталоге, и в крайнем случае попросит ввести вручную.
@@ -171,7 +171,7 @@ caddy_config/
 
 `switch_ca.sh` переключает между **LE prod** и **LE staging**:
 ```bash
-curl -fsSL https://raw.githubusercontent.com/evdokimenkoiv/N8M-Jarvis/main/switch_ca.sh -o switch_ca.sh
+curl -fsSL https://raw.githubusercontent.com/evdokimenkoiv/N8N-Jarvis/main/switch_ca.sh -o switch_ca.sh
 chmod +x switch_ca.sh && ./switch_ca.sh
 ```
 - Скрипт правит `acme_ca` в `Caddyfile`, **перезапускает** Caddy и при необходимости делает **форс-перевыпуск** (удаляет старые сертификаты в контейнере и перезапускает ещё раз).
@@ -194,7 +194,7 @@ chmod +x switch_ca.sh && ./switch_ca.sh
 ## Удаление
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/evdokimenkoiv/N8M-Jarvis/main/uninstall.sh -o uninstall.sh
+curl -fsSL https://raw.githubusercontent.com/evdokimenkoiv/N8N-Jarvis/main/uninstall.sh -o uninstall.sh
 chmod +x uninstall.sh && ./uninstall.sh
 ```
 Скрипт останавливает и удаляет контейнеры/сети. Каталоги данных остаются, если иное не прописано (проверьте скрипт перед использованием).
