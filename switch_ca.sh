@@ -21,8 +21,9 @@ if [[ "$LANG_CHOICE" == "ru" ]]; then
   P_FORCE="Принудительно перевыпустить сертификат (удалить старые)? [y/N]: "
   M_NOFILE="Файл Caddyfile не найден в каталоге: %s"
   M_NODEV="docker-compose.yml не найден в каталоге: %s"
-  M_UPD="Обновляю Caddyfile и перезапускаю Caddy..."
+  M_UPD="Обновляю Caddyfile, перезапускаю Caddy..."
   M_FORCE="Удаляю старые сертификаты в контейнере Caddy для домена %s ..."
+  M_RESTART="Перезапуск Caddy для применения нового сертификата..."
   M_DONE="Готово."
   T_ERR="Ошибка переключения. Смотрите лог выше."
 else
@@ -34,6 +35,7 @@ else
   M_NODEV="docker-compose.yml not found in directory: %s"
   M_UPD="Updating Caddyfile and restarting Caddy..."
   M_FORCE="Deleting old certs inside Caddy container for domain %s ..."
+  M_RESTART="Restarting Caddy to apply the new certificate..."
   M_DONE="Done."
   T_ERR="Switch failed. See logs above."
 fi
@@ -64,25 +66,28 @@ fi
 if grep -qE '^\s*acme_ca\s+' "$CADDYFILE"; then
   sed -i "s#^\s*acme_ca\s\+.*#  acme_ca ${ACME_URL}#g" "$CADDYFILE"
 else
-  # insert after email line inside global options block
   sed -i "/^\s*email\s\+.*$/a \  acme_ca ${ACME_URL}" "$CADDYFILE"
 fi
 
 info "$M_UPD"
+# Recreate if needed and restart to pick up cert change
 sudo docker compose -f "$COMPOSE" up -d caddy
+info "$M_RESTART"
+sudo docker compose -f "$COMPOSE" restart caddy
 
 # Force re-issue?
 read -rp "$P_FORCE" FORCE
 FORCE="${FORCE:-N}"
 if [[ "${FORCE^^}" == "Y" ]]; then
-  # Try to get DOMAIN from .env; fallback to ask
   DOMAIN="$(grep -E '^DOMAIN=' "${INSTALL_DIR}/.env" 2>/dev/null | head -n1 | cut -d= -f2- || true)"
   if [[ -z "${DOMAIN:-}" ]]; then
     read -rp "Domain / Домен (FQDN): " DOMAIN
   fi
   if [[ -n "${DOMAIN:-}" ]]; then
     printf "$M_FORCE\n" "$DOMAIN"
-    sudo docker compose -f "$COMPOSE" exec -T caddy sh -lc "rm -rf /data/caddy/certificates/*/*${DOMAIN}* || true && caddy reload --config /etc/caddy/Caddyfile || true"
+    sudo docker compose -f "$COMPOSE" exec -T caddy sh -lc "rm -rf /data/caddy/certificates/*/*${DOMAIN}* || true"
+    # restart again to trigger fresh issuance
+    sudo docker compose -f "$COMPOSE" restart caddy
   fi
 fi
 
