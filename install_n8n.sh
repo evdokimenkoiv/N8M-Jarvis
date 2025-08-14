@@ -1,0 +1,112 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# --- helpers ---
+bold()   { printf "\033[1m%s\033[0m\n" "$*"; }
+info()   { printf "[-] %s\n" "$*"; }
+ok()     { printf "[✓] %s\n" "$*"; }
+warn()   { printf "[!] %s\n" "$*"; }
+err()    { printf "[✗] %s\n" "$*"; }
+
+trap 'err "${T_ERR:-Installation failed. See logs above.}"; exit 1' ERR
+
+# --- language selection ---
+read -rp "Select language / Выберите язык [en/ru] (ru): " LANG_CHOICE
+LANG_CHOICE="${LANG_CHOICE,,}"
+if [[ "$LANG_CHOICE" != "en" && "$LANG_CHOICE" != "ru" ]]; then LANG_CHOICE="ru"; fi
+
+if [[ "$LANG_CHOICE" == "ru" ]]; then
+  T_TITLE="=== Установщик n8n (Docker + PostgreSQL + Caddy/Let’s Encrypt) ==="
+  P_DOMAIN="Домен (FQDN), напр. example.com: "
+  P_EMAIL="E-mail для Let’s Encrypt [admin@%s]: "
+  P_TZ="Часовой пояс [Europe/Amsterdam]: "
+  P_DIR="Каталог установки [/opt/n8n]: "
+  P_PG="Версия PostgreSQL [15-alpine]: "
+  P_UFW="Включить UFW и открыть 22/80/443? [Y/n]: "
+  P_STAGE="Использовать STAGING-CA Let’s Encrypt для теста? [y/N]: "
+  M_DNSCHK1="Проверка DNS → публичного IP..."
+  M_DNS_WARN="ВНИМАНИЕ: DNS %s → %s, а ваш публичный IP → %s. Выпуск сертификата может не получиться, если запись A/AAAA ещё не обновилась."
+  M_DOCKER="Установка Docker и compose v2..."
+  M_PREP="Подготовка каталога %s ..."
+  M_ENV="Генерация секретов и .env..."
+  M_CADDY="Создание Caddyfile..."
+  M_COMPOSE="Создание docker-compose.yml..."
+  M_UFW="Настройка UFW (SSH/HTTP/HTTPS)..."
+  M_START="Запуск контейнеров..."
+  M_WAIT="Ожидаю готовности HTTPS (до ~60 сек)..."
+  M_DONE="Готово!"
+  M_OPEN="Откройте: https://%s/"
+  M_CERT="Проверка сертификата: sudo docker logs caddy | grep -Ei 'acme|certificate|obtaining|renew'"
+  M_PS="Статус контейнеров:   sudo docker compose -f %s/docker-compose.yml ps"
+  M_TG="Telegram вебхуки: адрес будет вида https://%s/webhook/..."
+  M_STAGE_NOTE="Если включали STAGING-CA, позже пересоберите без неё (боевые сертификаты)."
+  T_ERR="Ошибка установки. Смотрите лог выше."
+else
+  T_TITLE="=== n8n Installer (Docker + PostgreSQL + Caddy/Let’s Encrypt) ==="
+  P_DOMAIN="Domain (FQDN), e.g. example.com: "
+  P_EMAIL="E-mail for Let’s Encrypt [admin@%s]: "
+  P_TZ="Time zone [Europe/Amsterdam]: "
+  P_DIR="Install directory [/opt/n8n]: "
+  P_PG="PostgreSQL image tag [15-alpine]: "
+  P_UFW="Enable UFW and open 22/80/443? [Y/n]: "
+  P_STAGE="Use Let’s Encrypt STAGING CA for testing? [y/N]: "
+  M_DNSCHK1="Checking DNS → public IP..."
+  M_DNS_WARN="WARNING: DNS %s → %s, but your public IP is %s. Certificate issuance may fail if A/AAAA isn’t updated yet."
+  M_DOCKER="Installing Docker and compose v2..."
+  M_PREP="Preparing directory %s ..."
+  M_ENV="Generating secrets and .env..."
+  M_CADDY="Writing Caddyfile..."
+  M_COMPOSE="Writing docker-compose.yml..."
+  M_UFW="Configuring UFW (SSH/HTTP/HTTPS)..."
+  M_START="Starting containers..."
+  M_WAIT="Waiting for HTTPS to be ready (up to ~60s)..."
+  M_DONE="Done!"
+  M_OPEN="Open: https://%s/"
+  M_CERT="Certificate logs:   sudo docker logs caddy | grep -Ei 'acme|certificate|obtaining|renew'"
+  M_PS="Containers status:    sudo docker compose -f %s/docker-compose.yml ps"
+  M_TG="Telegram webhooks: URL will be like https://%s/webhook/..."
+  M_STAGE_NOTE="If you used STAGING CA, rebuild later without it (production certs)."
+  T_ERR="Installation failed. See logs above."
+fi
+
+bold "$T_TITLE"
+
+# --- inputs ---
+read -rp "$P_DOMAIN" DOMAIN
+while [[ -z "${DOMAIN:-}" ]]; do read -rp "$P_DOMAIN" DOMAIN; done
+
+printf "$P_EMAIL" "$DOMAIN"
+read -r EMAIL
+EMAIL="${EMAIL:-admin@$DOMAIN}"
+
+read -rp "$P_TZ" TZ
+TZ="${TZ:-Europe/Amsterdam}"
+
+read -rp "$P_DIR" INSTALL_DIR
+INSTALL_DIR="${INSTALL_DIR:-/opt/n8n}"
+
+read -rp "$P_PG" PG_TAG
+PG_TAG="${PG_TAG:-15-alpine}"
+
+read -rp "$P_UFW" UFW_ANS
+UFW_ANS="${UFW_ANS:-Y}"
+
+read -rp "$P_STAGE" LE_STAGE
+LE_STAGE="${LE_STAGE:-N}"
+
+# --- preflight: DNS awareness (best-effort) ---
+info "$M_DNSCHK1"
+PUB_IP="$(curl -fsS https://api.ipify.org || curl -fsS https://ifconfig.me || true)"
+DNS_IP="$(getent ahosts "$DOMAIN" | awk '{print $1}' | head -n1 || true)"
+if [[ -n "${PUB_IP:-}" && -n "${DNS_IP:-}" && "$PUB_IP" != "$DNS_IP" ]]; then
+  printf "$M_DNS_WARN\n" "$DOMAIN" "$DNS_IP" "$PUB_IP"
+fi
+
+# --- docker install ---
+info "$M_DOCKER"
+if ! command -v docker >/dev/null 2>&1; then
+  sudo apt-get update -y
+  sudo apt-get install -y ca-certificates curl gnupg openssl
+  sudo install -m 0755 -d /etc/apt/keyrings
+  curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+  echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/]()
