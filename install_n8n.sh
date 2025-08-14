@@ -109,4 +109,145 @@ if ! command -v docker >/dev/null 2>&1; then
   sudo apt-get install -y ca-certificates curl gnupg openssl
   sudo install -m 0755 -d /etc/apt/keyrings
   curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
-  echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/]()
+  echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu $(. /etc/os-release; echo "$UBUNTU_CODENAME") stable" | sudo tee /etc/apt/sources.list.d/docker.list >/dev/null
+  sudo apt-get update -y
+  sudo apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+else
+  ok "Docker already installed"
+fi
+
+# --- prepare dir ---
+printf "$M_PREP\n" "$INSTALL_DIR"
+sudo mkdir -p "$INSTALL_DIR"
+sudo chown "$USER":"$USER" "$INSTALL_DIR"
+cd "$INSTALL_DIR"
+
+# --- secrets & .env ---
+info "$M_ENV"
+POSTGRES_PASSWORD="$(openssl rand -base64 32 | tr -d "\n")"
+N8N_ENCRYPTION_KEY="$(openssl rand -base64 24 | tr -d "\n")"
+
+cat > .env <<EOF
+# ---- base ----
+DOMAIN=${DOMAIN}
+EMAIL=${EMAIL}
+GENERIC_TIMEZONE=${TZ}
+
+# ---- n8n ----
+N8N_HOST=${DOMAIN}
+N8N_PORT=5678
+N8N_PROTOCOL=https
+N8N_EDITOR_BASE_URL=https://${DOMAIN}/
+WEBHOOK_URL=https://${DOMAIN}/
+N8N_ENCRYPTION_KEY=${N8N_ENCRYPTION_KEY}
+N8N_SECURE_COOKIE=true
+N8N_DIAGNOSTICS_ENABLED=false
+
+# ---- postgres ----
+POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+EOF
+
+# --- Caddyfile ---
+info "$M_CADDY"
+{
+  echo "{"
+  echo "  email ${EMAIL}"
+  if [[ "${LE_STAGE^^}" == "Y" ]]; then
+    echo "  # STAGING CA for testing (remove for production):"
+    echo "  acme_ca https://acme-staging-v02.api.letsencrypt.org/directory"
+  fi
+  echo "}"
+  echo
+  echo "${DOMAIN} {"
+  echo "  encode zstd gzip"
+  echo "  reverse_proxy n8n:5678"
+  echo "}"
+} > Caddyfile
+
+# --- docker-compose.yml ---
+info "$M_COMPOSE"
+cat > docker-compose.yml <<'YAML'
+version: "3.9"
+services:
+  postgres:
+    image: postgres:${PG_TAG}
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: n8n
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: n8n
+    volumes:
+      - ./postgres:/var/lib/postgresql/data
+
+  n8n:
+    image: n8nio/n8n:latest
+    restart: unless-stopped
+    depends_on:
+      - postgres
+    environment:
+      DB_TYPE: postgresdb
+      DB_POSTGRESDB_HOST: postgres
+      DB_POSTGRESDB_PORT: 5432
+      DB_POSTGRESDB_DATABASE: n8n
+      DB_POSTGRESDB_USER: n8n
+      DB_POSTGRESDB_PASSWORD: ${POSTGRES_PASSWORD}
+      N8N_HOST: ${DOMAIN}
+      N8N_PORT: 5678
+      N8N_PROTOCOL: https
+      N8N_EDITOR_BASE_URL: https://${DOMAIN}/
+      WEBHOOK_URL: https://${DOMAIN}/
+      N8N_ENCRYPTION_KEY: ${N8N_ENCRYPTION_KEY}
+      GENERIC_TIMEZONE: ${GENERIC_TIMEZONE}
+      N8N_SECURE_COOKIE: "true"
+      N8N_DIAGNOSTICS_ENABLED: "false"
+    volumes:
+      - ./n8n_data:/home/node/.n8n
+
+  caddy:
+    image: caddy:alpine
+    restart: unless-stopped
+    depends_on:
+      - n8n
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile
+      - caddy_data:/data
+      - caddy_config:/config
+
+volumes:
+  caddy_data:
+  caddy_config:
+YAML
+
+# --- UFW ---
+if [[ "${UFW_ANS^^}" != "N" ]]; then
+  info "$M_UFW"
+  if command -v ufw >/dev/null 2>&1; then
+    sudo ufw allow OpenSSH || true
+    sudo ufw allow http || true
+    sudo ufw allow https || true
+    sudo ufw --force enable || true
+  else
+    warn "ufw not found — skipping firewall step."
+  fi
+fi
+
+# --- start ---
+info "$M_START"
+sudo docker compose pull
+sudo docker compose up -d
+
+info "$M_WAIT"
+for _ in $(seq 1 60); do
+  if curl -fsI "https://${DOMAIN}" >/dev/null 2>&1; then break; fi
+  sleep 2
+done
+
+bold "$M_DONE"
+printf "$M_OPEN\n" "$DOMAIN"
+echo "$M_CERT"
+printf "$M_PS\n" "$INSTALL_DIR"
+printf "$M_TG\n" "$DOMAIN"
+echo "$M_STAGE_NOTE"
