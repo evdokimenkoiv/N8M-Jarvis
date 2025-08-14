@@ -11,7 +11,8 @@ curl -fsSL https://raw.githubusercontent.com/evdokimenkoiv/N8M-Jarvis/main/insta
 chmod +x install_n8n.sh && ./install_n8n.sh
 ```
 
-After installation, open `https://<domain>/` and create the first n8n admin user.
+After installation, open `https://<domain>/` and create the first n8n admin user.  
+The installer will print: **“All set! Now open https://<domain>/ in your browser to finish the initial n8n setup.”**
 
 ---
 
@@ -24,55 +25,21 @@ After installation, open `https://<domain>/` and create the first n8n admin user
 5. **DNS awareness** (warns if A/AAAA doesn’t match server public IP).  
 6. **Installs Docker + compose v2** if missing.  
 7. **Prepares install dir** and generates secrets → writes `.env`.  
-8. **Creates data directories and fixes permissions** (`./n8n_data` → UID/GID **1000:1000**, `./postgres` → **999:999**). This eliminates a common crash where n8n/postgres can’t write to bind-mounted folders.  
+8. **Creates data directories and fixes permissions** (`./n8n_data` → UID/GID **1000:1000**, `./postgres` → **999:999**).  
 9. **Creates** `Caddyfile` and `docker-compose.yml` (with Postgres **healthcheck** & `depends_on: service_healthy`).  
 10. **(Optional) Configures UFW** (22/80/443).  
-11. **Starts** the stack and waits for HTTPS readiness.
-
-### Files & layout
-- `docker-compose.yml`, `Caddyfile`, `.env`  
-- Data: `n8n_data/`, `postgres/`, `caddy_data/`, `caddy_config/`
-
-### Webhooks & networking
-- Public endpoint via **HTTPS 443** (HTTP 80 for ACME).  
-- `WEBHOOK_URL=https://<domain>/` ensures proper public webhook URLs.  
-- Telegram allows 443/80/88/8443 — 443 is used here.
+11. **Starts** the stack and waits for HTTPS readiness.  
+12. Prints **OAuth** redirect URIs (OAuth2 & OAuth1) and the final browser instruction.
 
 ---
 
-## Switch certificate authority later
+## OAuth (Google/GitHub/Azure/etc.)
 
-Use the helper:
+Use these redirect URIs in your provider settings:
 
-```bash
-curl -fsSL https://raw.githubusercontent.com/evdokimenkoiv/N8M-Jarvis/main/switch_ca.sh -o switch_ca.sh
-chmod +x switch_ca.sh && ./switch_ca.sh
-```
-- Choose **prod** or **staging**.  
-- The script **restarts** the Caddy container to apply changes.  
-- Optional **force re-issue**: deletes old certs inside Caddy and restarts again to trigger fresh issuance.
+- **OAuth2**: `https://<domain>/rest/oauth2-credential/callback`  
+- **OAuth1**: `https://<domain>/rest/oauth1-credential/callback`
 
-> Note: Staging certificates are intentionally untrusted in browsers.
+> The installer prints these at the end, and you can run `./oauth_info.sh` later to display them again.
 
----
-
-## Operations
-
-**Update images**
-```bash
-cd /opt/n8n   # or your chosen directory
-sudo docker compose pull
-sudo docker compose up -d
-```
-
-**Backup**
-Save: `n8n_data/`, `postgres/`, `caddy_data/`, `caddy_config/`, and `.env`.
-
-**Restore**
-Place the folders back and run `sudo docker compose up -d`.
-
-**Uninstall**
-```bash
-curl -fsSL https://raw.githubusercontent.com/evdokimenkoiv/N8M-Jarvis/main/uninstall.sh -o uninstall.sh
-chmod +x uninstall.sh && ./uninstall.sh
-```
+In n8n, go to **Credentials**, create the corresponding OAuth credential and click **Connect**.

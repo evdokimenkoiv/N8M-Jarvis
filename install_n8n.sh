@@ -280,4 +280,23 @@ printf "$M_OPEN\n" "$DOMAIN"
 echo "$M_CERT"
 printf "$M_PS\n" "$INSTALL_DIR"
 printf "$M_TG\n" "$DOMAIN"
+
+# OAuth info
+if [[ "$LANG_CHOICE" == "ru" ]]; then
+  echo "OAuth2 redirect URI: https://${DOMAIN}/rest/oauth2-credential/callback"
+  echo "OAuth1 redirect URI: https://${DOMAIN}/rest/oauth1-credential/callback"
+  echo "Добавьте эти URL в настройках OAuth вашего провайдера (Google, GitHub и др.)."
+else
+  echo "OAuth2 redirect URI: https://${DOMAIN}/rest/oauth2-credential/callback"
+  echo "OAuth1 redirect URI: https://${DOMAIN}/rest/oauth1-credential/callback"
+  echo "Add these URLs to your OAuth provider settings (Google, GitHub, etc.)."
+fi
+
 echo "$M_STAGE_NOTE"
+
+# Final browser instruction
+if [[ "$LANG_CHOICE" == "ru" ]]; then
+  echo "Всё готово! Теперь откройте https://${DOMAIN}/ в браузере для дальнейшей настройки n8n."
+else
+  echo "All set! Now open https://${DOMAIN}/ in your browser to finish the initial n8n setup."
+fi

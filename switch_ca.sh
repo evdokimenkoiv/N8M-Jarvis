@@ -21,7 +21,7 @@ if [[ "$LANG_CHOICE" == "ru" ]]; then
   P_FORCE="Принудительно перевыпустить сертификат (удалить старые)? [y/N]: "
   M_NOFILE="Файл Caddyfile не найден в каталоге: %s"
   M_NODEV="docker-compose.yml не найден в каталоге: %s"
-  M_UPD="Обновляю Caddyfile, перезапускаю Caddy..."
+  M_UPD="Обновляю Caddyfile и перезапускаю Caddy..."
   M_FORCE="Удаляю старые сертификаты в контейнере Caddy для домена %s ..."
   M_RESTART="Перезапуск Caddy для применения нового сертификата..."
   M_DONE="Готово."
@@ -70,7 +70,6 @@ else
 fi
 
 info "$M_UPD"
-# Recreate if needed and restart to pick up cert change
 sudo docker compose -f "$COMPOSE" up -d caddy
 info "$M_RESTART"
 sudo docker compose -f "$COMPOSE" restart caddy
@@ -86,7 +85,6 @@ if [[ "${FORCE^^}" == "Y" ]]; then
   if [[ -n "${DOMAIN:-}" ]]; then
     printf "$M_FORCE\n" "$DOMAIN"
     sudo docker compose -f "$COMPOSE" exec -T caddy sh -lc "rm -rf /data/caddy/certificates/*/*${DOMAIN}* || true"
-    # restart again to trigger fresh issuance
     sudo docker compose -f "$COMPOSE" restart caddy
   fi
 fi
