@@ -43,3 +43,28 @@ Use these redirect URIs in your provider settings:
 > The installer prints these at the end, and you can run `./oauth_info.sh` later to display them again.
 
 In n8n, go to **Credentials**, create the corresponding OAuth credential and click **Connect**.
+
+---
+
+## No public IP (NAT/CGNAT): limitations & workarounds
+
+If the server has **no directly-assigned public IP** (behind NAT/CGNAT), the installer will warn you. The stack will still run, but expect these **limitations**:
+
+- **Automatic HTTPS (ACME HTTP-01 / TLS-ALPN-01)** may fail because Let’s Encrypt must reach ports **80/443** from the Internet. Without inbound reachability, no trusted certificate will be issued.
+- **External webhooks** (Telegram, Stripe, GitHub, etc.) require a **public HTTPS endpoint**. Delivery will fail if your instance isn’t reachable from the Internet.
+- **OAuth flows** (Google/GitHub/Azure, etc.) need a public callback (`/rest/oauth*`). They will not complete without inbound reachability.
+- **Telegram**: you can technically use a self-signed cert by uploading it on `setWebhook`, but **your server must still be reachable** from the Internet.
+- Browser access from the public Internet will not work without a routable address or a tunnel. Local access (SSH tunnel) is still possible.
+
+**Workarounds** (choose one):
+
+1. **Port forwarding on your router / firewall**: forward **80/tcp and 443/tcp** to this host; make DNS `A/AAAA` point to your public IP; open the ports in any firewalls.
+2. **Cloudflare Tunnel** (cloudflared): expose your domain without opening ports; terminate TLS at Cloudflare. Adjust Caddy to serve HTTP origin (or use CF Origin Cert / Full Strict).
+3. **Tailscale Funnel**: publish your n8n service via Tailscale with HTTPS.
+4. **Reverse SSH tunnel** to a VPS with a public IP, then proxy from that VPS (Caddy/NGINX) to your local n8n.
+5. **Development only**: temporarily expose `5678` locally and use **SSH port-forwarding** or a dev tunnel (e.g., ngrok/Cloudflared) for testing webhooks.
+
+> The installer’s public-IP check is heuristic. Some cloud providers assign only private NICs but still map a public IP with 1:1 NAT. If your domain already points to a reachable public IP with ports 80/443 forwarded to this host, you can ignore the warning.
+
+
+**Tip:** `oauth_info.sh` can **auto-detect** your domain from the running Docker container (looks for label `com.docker.compose.service=n8n` and reads `N8N_HOST`). If that fails, it can read `.env` from an install directory you specify, or ask you to type the domain manually.

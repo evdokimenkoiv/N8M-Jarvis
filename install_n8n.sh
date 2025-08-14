@@ -115,6 +115,57 @@ fi
 
 # --- preflight: DNS awareness (best-effort) ---
 info "$M_DNSCHK1"
+# --- public (white) IP detection on host ---
+has_public_ip_v4=0
+has_public_ip_v6=0
+
+# parse IPv4 addresses on host
+while read -r ip; do
+  # skip empty
+  [[ -z "$ip" ]] && continue
+  # private/CGNAT ranges
+  if [[ "$ip" == 10.* || "$ip" == 192.168.* || "$ip" == 127.* || "$ip" == 169.254.* ]]; then
+    continue
+  fi
+  # 172.16.0.0 - 172.31.255.255
+  if [[ "$ip" =~ ^172\.(1[6-9]|2[0-9]|3[0-1])\..* ]]; then
+    continue
+  fi
+  # 100.64.0.0/10 (CGNAT)
+  if [[ "$ip" =~ ^100\.(6[4-9]|[7-9][0-9]|1([0-1][0-9])|12[0-7])\..* ]]; then
+    continue
+  fi
+  has_public_ip_v4=1
+done < <(ip -4 -o addr show scope global 2>/dev/null | awk '{print $4}' | cut -d/ -f1)
+
+# parse IPv6 global addresses on host
+while read -r ip6; do
+  [[ -z "$ip6" ]] && continue
+  # Exclude link-local fe80::/10, loopback ::1, and unique local fc00::/7 (fc00::/7 includes fd00::/8)
+  if [[ "$ip6" =~ ^fe80:|^::1$|^(fc|fd) ]]; then
+    continue
+  fi
+  has_public_ip_v6=1
+done < <(ip -6 -o addr show scope global 2>/dev/null | awk '{print $4}' | cut -d/ -f1)
+
+if [[ "$LANG_CHOICE" == "ru" ]]; then
+  if [[ $has_public_ip_v4 -eq 0 && $has_public_ip_v6 -eq 0 ]]; then
+    warn "Похоже, у сервера НЕТ напрямую назначенного 'белого' IP (обнаружены только приватные адреса/NAT)."
+    warn "Стек поднимется, но с ограничениями (авто-HTTPS/вебхуки/OAuth могут не работать)."
+    warn "Если у вас есть проброс портов 80/443 на этот хост и DNS указывает на публичный IP — всё может быть OK."
+  else
+    ok "Обнаружен публичный IP на интерфейсах (IPv4/IPv6)."
+  fi
+else
+  if [[ $has_public_ip_v4 -eq 0 && $has_public_ip_v6 -eq 0 ]]; then
+    warn "It looks like the host has NO directly-assigned public (routable) IP (only private/NAT)."
+    warn "The stack will start, but with limitations (auto-HTTPS/webhooks/OAuth may not work)."
+    warn "If you have port-forwarding of 80/443 to this host and DNS points to the public IP, you may still be fine."
+  else
+    ok "A public IP was detected on host interfaces (IPv4/IPv6)."
+  fi
+fi
+
 PUB_IP="$(curl -fsS https://api.ipify.org || curl -fsS https://ifconfig.me || true)"
 DNS_IP="$(getent ahosts "$DOMAIN" | awk '{print $1}' | head -n1 || true)"
 if [[ -n "${PUB_IP:-}" && -n "${DNS_IP:-}" && "$PUB_IP" != "$DNS_IP" ]]; then
