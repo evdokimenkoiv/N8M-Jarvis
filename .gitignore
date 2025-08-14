@@ -1,0 +1,10 @@
+# runtime data (never commit)
+n8n_data/
+postgres/
+caddy_data/
+caddy_config/
+
+# OS/editor junk
+.DS_Store
+Thumbs.db
+*.swp

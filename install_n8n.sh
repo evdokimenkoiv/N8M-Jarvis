@@ -23,7 +23,7 @@ if [[ "$LANG_CHOICE" == "ru" ]]; then
   P_DIR="Каталог установки [/opt/n8n]: "
   P_PG="Версия PostgreSQL [15-alpine]: "
   P_UFW="Включить UFW и открыть 22/80/443? [Y/n]: "
-  P_STAGE="Использовать STAGING-CA Let’s Encrypt для теста? [y/N]: "
+  P_CA="Выберите сервис сертификатов: 1) Let’s Encrypt (prod) [по умолчанию], 2) Let’s Encrypt (staging — НЕ доверяется браузерами). Введите [1/2] (1): "
   M_DNSCHK1="Проверка DNS → публичного IP..."
   M_DNS_WARN="ВНИМАНИЕ: DNS %s → %s, а ваш публичный IP → %s. Выпуск сертификата может не получиться, если запись A/AAAA ещё не обновилась."
   M_DOCKER="Установка Docker и compose v2..."
@@ -39,7 +39,7 @@ if [[ "$LANG_CHOICE" == "ru" ]]; then
   M_CERT="Проверка сертификата:    sudo docker logs caddy | grep -Ei 'acme|certificate|obtaining|renew'"
   M_PS="Статус контейнеров:      sudo docker compose -f %s/docker-compose.yml ps"
   M_TG="Telegram вебхуки: адрес будет вида https://%s/webhook/..."
-  M_STAGE_NOTE="Если включали STAGING-CA, позже пересоберите без неё (боевые сертификаты)."
+  M_STAGE_NOTE="Если выбирали STAGING, браузеры НЕ доверяют таким сертификатам; для продакшена переключитесь на Let’s Encrypt prod."
   T_ERR="Ошибка установки. Смотрите лог выше."
 else
   T_TITLE="=== n8n Installer (Docker + PostgreSQL + Caddy/Let’s Encrypt) ==="
@@ -49,7 +49,7 @@ else
   P_DIR="Install directory [/opt/n8n]: "
   P_PG="PostgreSQL image tag [15-alpine]: "
   P_UFW="Enable UFW and open 22/80/443? [Y/n]: "
-  P_STAGE="Use Let’s Encrypt STAGING CA for testing? [y/N]: "
+  P_CA="Choose certificate authority: 1) Let’s Encrypt (prod) [default], 2) Let’s Encrypt (staging — NOT trusted by browsers). Enter [1/2] (1): "
   M_DNSCHK1="Checking DNS → public IP..."
   M_DNS_WARN="WARNING: DNS %s → %s, but your public IP is %s. Certificate issuance may fail if A/AAAA isn’t updated yet."
   M_DOCKER="Installing Docker and compose v2..."
@@ -65,7 +65,7 @@ else
   M_CERT="Certificate logs:       sudo docker logs caddy | grep -Ei 'acme|certificate|obtaining|renew'"
   M_PS="Containers status:       sudo docker compose -f %s/docker-compose.yml ps"
   M_TG="Telegram webhooks: URL will be like https://%s/webhook/..."
-  M_STAGE_NOTE="If you used STAGING CA, rebuild later without it (production certs)."
+  M_STAGE_NOTE="If you picked STAGING, browsers will NOT trust those certs; switch to Let’s Encrypt prod for production."
   T_ERR="Installation failed. See logs above."
 fi
 
@@ -91,8 +91,13 @@ PG_TAG="${PG_TAG:-15-alpine}"
 read -rp "$P_UFW" UFW_ANS
 UFW_ANS="${UFW_ANS:-Y}"
 
-read -rp "$P_STAGE" LE_STAGE
-LE_STAGE="${LE_STAGE:-N}"
+read -rp "$P_CA" CA_SEL
+CA_SEL="${CA_SEL:-1}"
+if [[ "$CA_SEL" == "2" ]]; then
+  ACME_URL="https://acme-staging-v02.api.letsencrypt.org/directory"
+else
+  ACME_URL="https://acme-v02.api.letsencrypt.org/directory"
+fi
 
 # --- preflight: DNS awareness (best-effort) ---
 info "$M_DNSCHK1"
@@ -153,10 +158,7 @@ info "$M_CADDY"
 {
   echo "{"
   echo "  email ${EMAIL}"
-  if [[ "${LE_STAGE^^}" == "Y" ]]; then
-    echo "  # STAGING CA for testing (remove for production):"
-    echo "  acme_ca https://acme-staging-v02.api.letsencrypt.org/directory"
-  fi
+  echo "  acme_ca ${ACME_URL}"
   echo "}"
   echo
   echo "${DOMAIN} {"
