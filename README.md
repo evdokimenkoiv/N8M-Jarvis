@@ -3,7 +3,7 @@
 This repository provides an **interactive installer** for **n8n** with **PostgreSQL** and **Caddy** reverse-proxy, automatic HTTPS via **Let’s Encrypt**, optional **staging** CA, and a set of helper scripts (**switch_ca.sh**, **oauth_info.sh**, **uninstall.sh**).  
 The installer supports **EN/RU**, **OAuth** redirect URIs, **Telegram-friendly** HTTPS on **443**, and performs critical **permissions fixes** to prevent common crashes.
 
-> Repo: `https://github.com/evdokimenkoiv/N8M-Jarvis`
+> Repo: `https://github.com/evdokimenkoiv/N8N-Jarvis`
 
 ---
 
@@ -11,7 +11,7 @@ The installer supports **EN/RU**, **OAuth** redirect URIs, **Telegram-friendly**
 
 ```bash
 # Download and run the installer
-curl -fsSL https://raw.githubusercontent.com/evdokimenkoiv/N8M-Jarvis/main/install_n8n.sh -o install_n8n.sh
+curl -fsSL https://raw.githubusercontent.com/evdokimenkoiv/N8N-Jarvis/main/install_n8n.sh -o install_n8n.sh
 chmod +x install_n8n.sh && ./install_n8n.sh
 ```
 
@@ -64,7 +64,7 @@ Use these redirect URIs in your OAuth provider settings (Google, GitHub, Azure, 
 
 You can re-print them anytime:
 ```bash
-curl -fsSL https://raw.githubusercontent.com/evdokimenkoiv/N8M-Jarvis/main/oauth_info.sh -o oauth_info.sh
+curl -fsSL https://raw.githubusercontent.com/evdokimenkoiv/N8N-Jarvis/main/oauth_info.sh -o oauth_info.sh
 chmod +x oauth_info.sh && ./oauth_info.sh
 ```
 `oauth_info.sh` auto-detects domain from the running Docker container (reads `N8N_HOST`), or from `.env` in a directory you specify, or asks you to type it.
@@ -171,7 +171,7 @@ caddy_config/
 
 Use `switch_ca.sh` to change between **LE prod** and **LE staging**:
 ```bash
-curl -fsSL https://raw.githubusercontent.com/evdokimenkoiv/N8M-Jarvis/main/switch_ca.sh -o switch_ca.sh
+curl -fsSL https://raw.githubusercontent.com/evdokimenkoiv/N8N-Jarvis/main/switch_ca.sh -o switch_ca.sh
 chmod +x switch_ca.sh && ./switch_ca.sh
 ```
 - The script updates `acme_ca` in `Caddyfile`, **restarts** Caddy, and optionally **forces re-issue** by deleting old certs inside the container and restarting again.
@@ -194,7 +194,7 @@ chmod +x switch_ca.sh && ./switch_ca.sh
 ## Uninstall
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/evdokimenkoiv/N8M-Jarvis/main/uninstall.sh -o uninstall.sh
+curl -fsSL https://raw.githubusercontent.com/evdokimenkoiv/N8N-Jarvis/main/uninstall.sh -o uninstall.sh
 chmod +x uninstall.sh && ./uninstall.sh
 ```
 This stops and removes containers/networks. Data directories remain unless the script explicitly deletes them (review before use).
